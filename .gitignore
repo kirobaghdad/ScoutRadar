@@ -3,7 +3,7 @@
 key_api.txt
 
 # Datasets
-data/
+/data/
 *.csv
 *.json
 *.parquet
