@@ -1,3 +1,35 @@
-data/
+# Environment variables
+.env
 key_api.txt
+
+# Datasets
+data/
+*.csv
+*.json
+*.parquet
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.xml
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Virtual Environments
+.venv/
+env/
+venv/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+
+# Note: poetry.lock should NOT be ignored to ensure reproducible builds.
