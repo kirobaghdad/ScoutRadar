@@ -19,6 +19,12 @@ dependencies = [
     "great-expectations (>=1.16.0,<2.0.0)",
 ]
 
+[tool.poetry]
+package-mode = false
+
+[tool.pytest.ini_options]
+pythonpath = "."
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
 pytest-cov = "^4.1.0"
