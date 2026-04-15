@@ -32,4 +32,5 @@ venv/
 .idea/
 *.swp
 
-# Note: poetry.lock should NOT be ignored to ensure reproducible builds.
+# Note: poetry.lock should NOT be ignored to ensure reproducible builds
+.ruff_cache/

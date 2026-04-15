@@ -1,15 +1,5 @@
 from __future__ import annotations
 
-import contextlib
-import io
-import json
-import re
-import time
-import unicodedata
-import urllib.error
-import urllib.parse
-import urllib.request
-import warnings
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
