@@ -27,6 +27,10 @@ htmlcov/
 env/
 venv/
 
+# Generated artifacts
+models/generated/
+mlruns/
+
 # IDE / Editor
 .vscode/
 .idea/
@@ -34,3 +38,4 @@ venv/
 
 # Note: poetry.lock should NOT be ignored to ensure reproducible builds
 .ruff_cache/
+.cache/
