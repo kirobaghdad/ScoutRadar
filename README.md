@@ -29,6 +29,15 @@ This project uses `poetry` for dependency management.
 - Splitting: chronological `70/15/15` train/validation/test
 - Feature processing: chronological `70/15/15` split, leakage-safe target exclusion, numeric scaling, and categorical one-hot encoding
 
+## 5.4 Preprocessing
+
+- Raw tables are cleaned by dropping duplicates, parsing date columns, imputing missing values, and clipping numeric IQR outliers.
+- The transfer modeling table adds pre-transfer valuation, player form, club form, optional cached API context, and the `transfer_success` target.
+- Feature preprocessing excludes identifiers, dates, and target-derived columns to avoid leakage.
+- Numeric features use median imputation and standard scaling.
+- Categorical features use most-frequent imputation and one-hot encoding with unknown categories ignored.
+- The fitted preprocessing artifact can be saved and loaded with `save_preprocessor_artifact()` and `load_preprocessor_artifact()`.
+
 ## Folder Structure
 
 - `data/` : raw inputs, cached API samples, and processed modeling datasets

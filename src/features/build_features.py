@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import logging
+import pickle
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -163,6 +165,38 @@ def _transform_frame(
     transformed = preprocessor.transform(clean_frame)
     feature_names = list(preprocessor.get_feature_names_out())
     return pd.DataFrame(transformed, index=frame.index, columns=feature_names)
+
+
+def transform_with_preprocessor_artifact(artifact: dict[str, Any], frame: pd.DataFrame) -> pd.DataFrame:
+    """Transform new rows with a fitted preprocessing artifact."""
+    return _transform_frame(
+        artifact["preprocessor"],
+        frame,
+        artifact["feature_columns"],
+    )
+
+
+def save_preprocessor_artifact(payload: dict[str, Any], output_path: str | Path) -> Path:
+    """Save the fitted preprocessing schema for reuse."""
+    artifact = {
+        "preprocessor": payload["preprocessor"],
+        "feature_columns": payload["feature_columns"],
+        "feature_names": payload["feature_names"],
+        "numeric_columns": payload["numeric_columns"],
+        "categorical_columns": payload["categorical_columns"],
+    }
+
+    path = Path(output_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("wb") as file:
+        pickle.dump(artifact, file)
+    return path
+
+
+def load_preprocessor_artifact(input_path: str | Path) -> dict[str, Any]:
+    """Load a fitted preprocessing schema saved by save_preprocessor_artifact."""
+    with Path(input_path).open("rb") as file:
+        return pickle.load(file)
 
 
 def build_features(
