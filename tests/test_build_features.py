@@ -1,6 +1,12 @@
 import pandas as pd
 
-from src.features.build_features import build_features
+from src.features.build_features import (
+    build_features,
+    chronological_split,
+    load_preprocessor_artifact,
+    save_preprocessor_artifact,
+    transform_with_preprocessor_artifact,
+)
 
 
 def test_build_features_fits_only_on_training_categories_and_excludes_target_columns():
@@ -37,3 +43,59 @@ def test_build_features_fits_only_on_training_categories_and_excludes_target_col
     assert payload["X_train"].shape[1] == payload["X_val"].shape[1] == payload["X_test"].shape[1]
     assert not any("Goalkeeper" in name for name in payload["feature_names"])
     assert payload["X_train"].isna().sum().sum() == 0
+
+
+def test_chronological_split_keeps_time_order_and_summary():
+    df = pd.DataFrame(
+        {
+            "transfer_date": pd.to_datetime(
+                [
+                    "2020-04-01",
+                    "2020-01-01",
+                    "2020-03-01",
+                    "2020-02-01",
+                    "2020-05-01",
+                    "2020-06-01",
+                ]
+            ),
+            "transfer_success": [1, 0, 1, 0, 1, 0],
+        }
+    )
+
+    splits = chronological_split(df, train_ratio=0.50, val_ratio=0.25)
+
+    assert list(splits["train"]["transfer_date"]) == list(pd.to_datetime(["2020-01-01", "2020-02-01", "2020-03-01"]))
+    assert list(splits["val"]["transfer_date"]) == list(pd.to_datetime(["2020-04-01"]))
+    assert list(splits["test"]["transfer_date"]) == list(pd.to_datetime(["2020-05-01", "2020-06-01"]))
+    assert list(splits["split_summary"]["split"]) == ["train", "val", "test"]
+
+
+def test_preprocessor_artifact_can_be_saved_loaded_and_reused(tmp_path):
+    train_df = pd.DataFrame(
+        {
+            "transfer_date": pd.to_datetime(["2019-01-01", "2019-02-01", "2019-03-01"]),
+            "position": ["Attack", "Defender", "Attack"],
+            "age_at_transfer": [21, 25, None],
+            "player_minutes_365d_pre": [1200, 900, 1500],
+            "transfer_success": [0, 1, 1],
+        }
+    )
+    new_rows = pd.DataFrame(
+        {
+            "transfer_date": pd.to_datetime(["2019-04-01"]),
+            "position": ["Goalkeeper"],
+            "age_at_transfer": [27],
+            "player_minutes_365d_pre": [800],
+            "transfer_success": [0],
+        }
+    )
+
+    payload = build_features(train_df)
+    artifact_path = save_preprocessor_artifact(payload, tmp_path / "preprocessor.pkl")
+    artifact = load_preprocessor_artifact(artifact_path)
+    transformed = transform_with_preprocessor_artifact(artifact, new_rows)
+
+    assert artifact_path.exists()
+    assert artifact["feature_columns"] == payload["feature_columns"]
+    assert list(transformed.columns) == payload["feature_names"]
+    assert transformed.isna().sum().sum() == 0
