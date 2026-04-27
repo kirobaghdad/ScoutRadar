@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean check
+.PHONY: install test lint format clean check preprocess transfer-dataset
 
 # Variables
 POETRY = poetry
@@ -30,3 +30,6 @@ clean:
 
 preprocess:
 	$(PYTHON) src/data/make_dataset.py
+
+transfer-dataset:
+	$(PYTHON) -m src.data.transfer_dataset --output-dir data/processed
