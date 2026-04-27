@@ -1,6 +1,6 @@
 # ScoutRadar - Data Science Project (Phase 2)
 
-ScoutRadar is an offline-runnable transfer-success classification project for football recruitment. The Phase 2 pipeline builds a transfer-level modeling table, labels historical transfers as success/failure, trains five classifiers, logs experiments in MLflow, and produces EDA/model-comparison artifacts for the final report.
+ScoutRadar is an offline-runnable transfer-success data pipeline for football recruitment. This trimmed workspace keeps Kirollos's data and automation scope: validation, preprocessing, feature transformation, transfer-success target building, tests, Makefile workflows, and CI.
 
 ## Setup Instructions
 
@@ -18,16 +18,6 @@ This project uses `poetry` for dependency management.
   `data/processed/transfer_labeled_cohort.csv`
   `data/processed/transfer_excluded_audit.csv`
   `data/processed/transfer_label_failures.csv`
-- `make train-phase2`
-  Trains and compares the five required classifiers:
-  `DummyClassifier`
-  `LogisticRegression`
-  `RandomForestClassifier`
-  `GradientBoostingClassifier`
-  `SVC`
-  Outputs are written under `models/generated/`.
-- `make smoke`
-  Runs the synthetic end-to-end pipeline test without requiring the local raw dataset or live API access.
 - `make test`
   Runs the full pytest suite with coverage.
 
@@ -37,17 +27,12 @@ This project uses `poetry` for dependency management.
 - Target: `transfer_success`
 - Success rule: at least `1,800` minutes for the destination club in the first `24` months after the transfer, plus end-of-window market value greater than or equal to pre-transfer market value
 - Splitting: chronological `70/15/15` train/validation/test
-- Tracking: MLflow file-based tracking under `models/generated/mlruns` by default
-
-## Notebook
-
-The offline EDA and report dashboard notebook lives at `notebooks/phase2_dashboard.ipynb`. It loads the generated transfer dataset and model-comparison outputs, then renders the visualizations and comparison tables needed for the report.
+- Feature processing: chronological `70/15/15` split, leakage-safe target exclusion, numeric scaling, and categorical one-hot encoding
 
 ## Folder Structure
 
 - `data/` : raw inputs, cached API samples, and processed modeling datasets
 - `docs/` : project documentation and PDFs
-- `notebooks/` : exploratory analysis and report-facing dashboards
-- `src/` : pipelines for validation, feature engineering, and model training
-- `tests/` : unit and integration tests, including the synthetic smoke pipeline
-- `models/` : generated model artifacts and MLflow runs
+- `notebooks/` : Phase 1 validation notebook
+- `src/` : pipelines for validation, transfer dataset construction, and feature engineering
+- `tests/` : unit and integration tests for the retained data pipeline

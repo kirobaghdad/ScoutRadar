@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean check preprocess transfer-dataset train-phase2 smoke
+.PHONY: install test lint format clean check preprocess transfer-dataset
 
 # Variables
 POETRY = poetry
@@ -33,9 +33,3 @@ preprocess:
 
 transfer-dataset:
 	$(PYTHON) -m src.data.transfer_dataset --output-dir data/processed
-
-train-phase2:
-	$(PYTHON) -m src.models.train_model --dataset-path data/processed/transfer_modeling_dataset.csv --output-dir models/generated
-
-smoke:
-	$(PYTEST) tests/test_phase2_pipeline.py -v
