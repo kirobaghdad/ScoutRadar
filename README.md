@@ -10,6 +10,12 @@ This project uses `poetry` for dependency management.
 2. Run `poetry install` in the project root.
 3. Activate the environment with `poetry shell`, or prefix commands with `poetry run`.
 
+## API Key Configuration
+
+API-Football credentials are read from the `API_FOOTBALL_KEY` environment variable first. For GitHub Actions, add a repository secret named `API_FOOTBALL_KEY`; the CI workflow passes it to the test environment automatically.
+
+For local runs, either export `API_FOOTBALL_KEY` in your shell or keep a local `key_api.txt` fallback file. Do not commit `.env` or `key_api.txt`.
+
 ## Phase 2 Commands
 
 - `make transfer-dataset`

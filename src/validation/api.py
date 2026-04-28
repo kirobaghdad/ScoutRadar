@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import urllib.error
@@ -78,10 +79,14 @@ def _sample_records(frame: pd.DataFrame, mask: pd.Series, columns: list[str], li
     return frame.loc[mask, available_columns].head(limit).to_dict("records")
 
 
-def load_api_key(key_path: str | Path = "key_api.txt") -> str:
+def load_api_key(key_path: str | Path = "key_api.txt", env_var: str = "API_FOOTBALL_KEY") -> str:
+    env_key = os.getenv(env_var, "").strip()
+    if env_key:
+        return env_key
+
     key_file = Path(key_path).expanduser().resolve()
     if not key_file.exists():
-        raise FileNotFoundError(f"API key file was not found: {key_file}")
+        raise FileNotFoundError(f"Set {env_var} or provide an API key file at {key_file}")
 
     raw_text = key_file.read_text(encoding="utf-8").strip()
     if not raw_text:
