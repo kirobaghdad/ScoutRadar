@@ -32,7 +32,7 @@ This project uses `poetry` for dependency management.
 ## 5.4 Preprocessing
 
 - Raw tables are cleaned by dropping duplicates, parsing date columns, imputing missing values, and clipping numeric IQR outliers.
-- The transfer modeling table adds pre-transfer valuation, player form, club form, optional cached API context, and the `transfer_success` target.
+- The transfer modeling table combines the Kaggle-style football tables with required cached API context, then adds pre-transfer valuation, player form, club form, and the `transfer_success` target.
 - Feature preprocessing excludes identifiers, dates, and target-derived columns to avoid leakage.
 - Numeric features use median imputation and standard scaling.
 - Categorical features use most-frequent imputation and one-hot encoding with unknown categories ignored.

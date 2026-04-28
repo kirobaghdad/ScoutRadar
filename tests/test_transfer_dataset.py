@@ -18,6 +18,8 @@ def test_build_transfer_modeling_dataset_filters_and_audits(tmp_path):
     assert dataset["transfer_date"].min() >= pd.Timestamp("2018-07-01")
     assert dataset["transfer_date"].max() <= pd.Timestamp("2022-06-30")
     assert dataset["transfer_key"].is_unique
+    assert dataset["destination_api_context_matched"].eq(1).any()
+    assert dataset["source_api_context_matched"].eq(1).any()
 
     assert excluded["exclusion_reason"].str.contains("after_modeling_window").any()
     assert excluded["exclusion_reason"].str.contains("destination_not_big_five").any()
@@ -36,3 +38,16 @@ def test_transfer_success_labels_do_not_leak_beyond_follow_up_window(tmp_path):
     assert leakage_guard_row["target_destination_minutes_24m"] < 1800
     assert leakage_guard_row["target_end_market_value"] < leakage_guard_row["pre_transfer_market_value"]
     assert leakage_guard_row["transfer_success"] == 0
+
+
+def test_transfer_dataset_requires_api_fixture_cache(tmp_path):
+    raw_dir = create_synthetic_phase2_raw_dir(tmp_path)
+    for cache_file in tmp_path.glob("api_football*.json"):
+        cache_file.unlink()
+
+    try:
+        build_transfer_modeling_dataset(raw_dir=raw_dir, cache_dir=tmp_path)
+    except FileNotFoundError as exc:
+        assert "Missing required API Football fixture cache" in str(exc)
+    else:
+        raise AssertionError("Expected missing API fixture cache to fail the transfer dataset build")

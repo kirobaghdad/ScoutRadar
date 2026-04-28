@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -482,5 +483,31 @@ def create_synthetic_phase2_raw_dir(base_dir: str | Path, *, n_transfers: int = 
     pd.DataFrame(appearances_rows).to_csv(raw_dir / "appearances.csv", index=False)
     pd.DataFrame(games_rows).to_csv(raw_dir / "games.csv", index=False)
     pd.DataFrame(club_games_rows).to_csv(raw_dir / "club_games.csv", index=False)
+
+    api_fixture_rows = []
+    fixture_id = 100000
+    for season in range(2018, 2023):
+        for club_id, club_name, competition_id in all_clubs:
+            fixture_id += 1
+            api_fixture_rows.append(
+                {
+                    "fixture": {
+                        "id": fixture_id,
+                        "date": f"{season}-09-01T15:00:00+00:00",
+                        "timestamp": int(pd.Timestamp(f"{season}-09-01").timestamp()),
+                        "status": {"short": "FT", "long": "Match Finished", "elapsed": 90},
+                    },
+                    "league": {"id": 1, "name": competition_id, "country": "Syntheticland", "season": season},
+                    "teams": {
+                        "home": {"id": club_id, "name": club_name, "winner": True},
+                        "away": {"id": 900000 + fixture_id, "name": f"API Opponent {fixture_id}", "winner": False},
+                    },
+                    "goals": {"home": 2, "away": 1},
+                }
+            )
+    (Path(base_dir) / "api_football_fixtures_synthetic.json").write_text(
+        json.dumps({"response": api_fixture_rows}),
+        encoding="utf-8",
+    )
 
     return raw_dir

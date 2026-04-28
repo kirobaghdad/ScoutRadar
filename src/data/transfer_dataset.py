@@ -567,8 +567,12 @@ def _attach_club_form_features(cohort: pd.DataFrame, club_history: pd.DataFrame)
 
 def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
     cache_root = Path(cache_dir).expanduser().resolve()
+    cache_paths = sorted(cache_root.glob("api_football*.json"))
+    if not cache_paths:
+        raise FileNotFoundError(f"Missing required API Football fixture cache in {cache_root}")
+
     frames: list[pd.DataFrame] = []
-    for cache_path in sorted(cache_root.glob("api_football*.json")):
+    for cache_path in cache_paths:
         try:
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
             if isinstance(payload, dict) and "payload" in payload:
@@ -619,13 +623,13 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             logger.warning("Skipping API cache %s because it could not be parsed: %s", cache_path, exc)
 
     if not frames:
-        return pd.DataFrame()
+        raise ValueError(f"Required API Football fixture cache in {cache_root} did not contain usable fixture rows")
 
     combined = pd.concat(frames, ignore_index=True)
     return combined.drop_duplicates(["season", "team_key"], keep="last").reset_index(drop=True)
 
 
-def _attach_optional_api_features(cohort: pd.DataFrame, cache_dir: str | Path) -> pd.DataFrame:
+def _attach_api_context_features(cohort: pd.DataFrame, cache_dir: str | Path) -> pd.DataFrame:
     api_context = _load_cached_api_team_context(cache_dir)
     result = cohort.copy()
     for prefix, team_col in [("source", "source_club_name"), ("destination", "destination_club_name")]:
@@ -634,9 +638,6 @@ def _attach_optional_api_features(cohort: pd.DataFrame, cache_dir: str | Path) -
         result[f"{prefix}_api_cached_goal_diff_per_match"] = pd.NA
         result[f"{prefix}_api_cache_file"] = pd.NA
         result[f"{prefix}_team_key"] = result[team_col].map(_normalize_text)
-
-    if api_context.empty:
-        return result.drop(columns=["source_team_key", "destination_team_key"])
 
     for prefix, team_key_col in [("source", "source_team_key"), ("destination", "destination_team_key")]:
         merged = result[[team_key_col, "season_start_year"]].merge(
@@ -762,8 +763,8 @@ def create_transfer_success_labels(
 def _finalize_modeling_dataset(labeled: pd.DataFrame) -> pd.DataFrame:
     modeling_dataset = labeled[labeled["target_is_eligible"]].copy()
     modeling_dataset["transfer_success"] = modeling_dataset["transfer_success"].astype(int)
-    modeling_dataset["source_api_cache_available"] = modeling_dataset["source_api_cached_matches"].notna().astype(int)
-    modeling_dataset["destination_api_cache_available"] = modeling_dataset["destination_api_cached_matches"].notna().astype(int)
+    modeling_dataset["source_api_context_matched"] = modeling_dataset["source_api_cached_matches"].notna().astype(int)
+    modeling_dataset["destination_api_context_matched"] = modeling_dataset["destination_api_cached_matches"].notna().astype(int)
 
     ordered_columns = [
         "transfer_key",
@@ -828,11 +829,11 @@ def _finalize_modeling_dataset(labeled: pd.DataFrame) -> pd.DataFrame:
         "source_api_cached_matches",
         "source_api_cached_win_rate",
         "source_api_cached_goal_diff_per_match",
-        "source_api_cache_available",
+        "source_api_context_matched",
         "destination_api_cached_matches",
         "destination_api_cached_win_rate",
         "destination_api_cached_goal_diff_per_match",
-        "destination_api_cache_available",
+        "destination_api_context_matched",
         "is_same_league_move",
         "is_same_country_move",
         "season_start_year",
@@ -878,7 +879,7 @@ def build_transfer_modeling_dataset(
     cohort = _attach_player_performance_features(cohort, tables["appearances"])
     club_history = _prepare_club_form_history(tables["club_games"], tables["games"])
     cohort = _attach_club_form_features(cohort, club_history)
-    cohort = _attach_optional_api_features(cohort, cache_dir)
+    cohort = _attach_api_context_features(cohort, cache_dir)
     labeled_cohort = create_transfer_success_labels(
         cohort,
         tables["appearances"],
