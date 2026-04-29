@@ -1,6 +1,6 @@
 # ScoutRadar - Data Science Project (Phase 2)
 
-ScoutRadar is an offline-runnable transfer-success data pipeline for football recruitment. This trimmed workspace keeps Kirollos's data and automation scope: validation, preprocessing, feature transformation, transfer-success target building, tests, Makefile workflows, and CI.
+ScoutRadar is a transfer-success data pipeline for football recruitment. This workspace covers validation, preprocessing, feature transformation, transfer-success target building, tests, Makefile workflows, and CI.
 
 ## Setup Instructions
 
