@@ -12,8 +12,11 @@ def test_build_transfer_modeling_dataset_filters_and_audits(tmp_path):
     dataset = outputs["modeling_dataset"]
     excluded = outputs["excluded_transfers"]
     failures = outputs["label_eligibility_failures"]
+    summary = outputs["audit_summary"]
 
     assert not dataset.empty
+    assert list(summary.columns) == ["metric", "value"]
+    assert set(summary["metric"]).issuperset({"modeling_rows", "positive_class_rate"})
     assert dataset["destination_competition_id"].isin(BIG_FIVE_LEAGUES).all()
     assert dataset["transfer_date"].min() >= pd.Timestamp("2018-07-01")
     assert dataset["transfer_date"].max() <= pd.Timestamp("2022-06-30")

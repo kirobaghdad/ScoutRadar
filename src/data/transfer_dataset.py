@@ -915,22 +915,21 @@ def build_transfer_modeling_dataset(
     modeling_dataset = _finalize_modeling_dataset(labeled_cohort)
     label_eligibility_failures = labeled_cohort[~labeled_cohort["target_is_eligible"]].copy().reset_index(drop=True)
 
+    summary_values = {
+        "raw_transfers": int(len(tables["transfers"])),
+        "candidate_transfers": int(len(cohort)),
+        "modeling_rows": int(len(modeling_dataset)),
+        "excluded_rows": int(len(excluded_transfers)),
+        "label_ineligible_rows": int(len(label_eligibility_failures)),
+        "positive_class_rate": round(float(modeling_dataset["transfer_success"].mean()), 4) if not modeling_dataset.empty else pd.NA,
+        "start_date": start_date,
+        "end_date": end_date,
+        "follow_up_months": int(follow_up_months),
+        "minutes_threshold": int(minutes_threshold),
+        "big_five_leagues": ",".join(big_five_leagues),
+    }
     audit_summary = pd.DataFrame(
-        [
-            {
-                "raw_transfers": int(len(tables["transfers"])),
-                "candidate_transfers": int(len(cohort)),
-                "modeling_rows": int(len(modeling_dataset)),
-                "excluded_rows": int(len(excluded_transfers)),
-                "label_ineligible_rows": int(len(label_eligibility_failures)),
-                "positive_class_rate": round(float(modeling_dataset["transfer_success"].mean()), 4) if not modeling_dataset.empty else pd.NA,
-                "start_date": start_date,
-                "end_date": end_date,
-                "follow_up_months": int(follow_up_months),
-                "minutes_threshold": int(minutes_threshold),
-                "big_five_leagues": ",".join(big_five_leagues),
-            }
-        ]
+        [{"metric": metric, "value": value} for metric, value in summary_values.items()]
     )
 
     outputs = {
