@@ -505,7 +505,9 @@ def create_synthetic_phase2_raw_dir(base_dir: str | Path, *, n_transfers: int = 
                     "goals": {"home": 2, "away": 1},
                 }
             )
-    (Path(base_dir) / "api_football_fixtures_synthetic.json").write_text(
+    api_cache_dir = Path(base_dir) / "api_football"
+    api_cache_dir.mkdir(parents=True, exist_ok=True)
+    (api_cache_dir / "api_football_fixtures_synthetic.json").write_text(
         json.dumps({"response": api_fixture_rows}),
         encoding="utf-8",
     )

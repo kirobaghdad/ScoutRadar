@@ -9,7 +9,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 from src.validation.api import flatten_fixture_response
-from src.validation.config import API_FOOTBALL_BIG_FIVE_LEAGUES
+from src.validation.config import API_FOOTBALL_BIG_FIVE_LEAGUES, DEFAULT_API_FOOTBALL_CACHE_DIR
 from src.validation.utils import _normalize_text, load_primary_tables
 
 logger = logging.getLogger(__name__)
@@ -569,6 +569,9 @@ def _attach_club_form_features(cohort: pd.DataFrame, club_history: pd.DataFrame)
 def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
     cache_root = Path(cache_dir).expanduser().resolve()
     cache_paths = sorted(cache_root.glob("api_football*.json"))
+    if not cache_paths and (cache_root / "api_football").is_dir():
+        cache_root = cache_root / "api_football"
+        cache_paths = sorted(cache_root.glob("api_football*.json"))
     if not cache_paths:
         raise FileNotFoundError(f"Missing required API Football fixture cache in {cache_root}")
 
@@ -877,7 +880,7 @@ def build_transfer_modeling_dataset(
     raw_dir: str | Path = "data/player_scores_data",
     *,
     output_dir: str | Path | None = None,
-    cache_dir: str | Path = "data",
+    cache_dir: str | Path = DEFAULT_API_FOOTBALL_CACHE_DIR,
     start_date: str = DEFAULT_TRANSFER_START_DATE,
     end_date: str = DEFAULT_TRANSFER_END_DATE,
     follow_up_months: int = DEFAULT_FOLLOW_UP_MONTHS,
@@ -968,7 +971,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build the ScoutRadar transfer-level modeling dataset.")
     parser.add_argument("--raw-dir", default="data/player_scores_data")
     parser.add_argument("--output-dir", default="data/processed")
-    parser.add_argument("--cache-dir", default="data")
+    parser.add_argument("--cache-dir", default=DEFAULT_API_FOOTBALL_CACHE_DIR)
     parser.add_argument("--start-date", default=DEFAULT_TRANSFER_START_DATE)
     parser.add_argument("--end-date", default=DEFAULT_TRANSFER_END_DATE)
     parser.add_argument("--follow-up-months", type=int, default=DEFAULT_FOLLOW_UP_MONTHS)

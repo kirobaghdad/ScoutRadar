@@ -46,8 +46,10 @@ def test_load_api_key_requires_env_or_file(tmp_path, monkeypatch):
 
 
 def test_fetch_big_five_uses_existing_cache_grid(tmp_path, monkeypatch):
+    cache_dir = tmp_path / "api_football"
+    cache_dir.mkdir()
     for competition_id, league_config in API_FOOTBALL_BIG_FIVE_LEAGUES.items():
-        cache_path = tmp_path / f"api_football_{competition_id}_2018.json"
+        cache_path = cache_dir / f"api_football_{competition_id}_2018.json"
         cache_path.write_text(
             (
                 '{"payload":{"get":"fixtures","parameters":{"league":"%s","season":"2018"},"errors":[],"results":0,'
@@ -63,7 +65,7 @@ def test_fetch_big_five_uses_existing_cache_grid(tmp_path, monkeypatch):
 
     monkeypatch.setattr("src.validation.api.fetch_api_football_fixtures", fail_live_fetch)
 
-    results = fetch_api_football_big_five_fixtures(start_season=2018, end_season=2018, cache_dir=tmp_path)
+    results = fetch_api_football_big_five_fixtures(start_season=2018, end_season=2018, cache_dir=cache_dir)
 
     assert len(results) == len(API_FOOTBALL_BIG_FIVE_LEAGUES)
     assert all(result["source"] == "cache_file" for result in results.values())

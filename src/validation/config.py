@@ -227,4 +227,5 @@ API_REQUIRED_FIXTURE_FIELDS = [
     "away_goals",
 ]
 API_COMPLETED_STATUSES = {"FT", "AET", "PEN"}
-DEFAULT_API_FOOTBALL_CACHE_PATH = "data/api_football_fixtures_sample.json"
+DEFAULT_API_FOOTBALL_CACHE_DIR = "data/api_football"
+DEFAULT_API_FOOTBALL_CACHE_PATH = f"{DEFAULT_API_FOOTBALL_CACHE_DIR}/api_football_fixtures_sample.json"

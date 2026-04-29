@@ -20,7 +20,7 @@ For local runs, either export `API_FOOTBALL_KEY` in your shell or keep a local `
 
 - `make api-cache`
   Fetches and caches API-Football fixture data for the Big Five leagues across the modeling seasons `2018` through `2022`.
-  This creates per-league-season cache files such as `data/api_football_GB1_2018.json`.
+  This creates per-league-season cache files such as `data/api_football/api_football_GB1_2018.json`.
 - `make transfer-dataset`
   Builds the transfer-level modeling dataset and saves:
   `data/processed/transfer_modeling_dataset.csv`
@@ -50,7 +50,7 @@ For local runs, either export `API_FOOTBALL_KEY` in your shell or keep a local `
 
 ## Folder Structure
 
-- `data/` : raw inputs, cached API samples, and processed modeling datasets
+- `data/` : raw inputs, grouped API fixture caches, and processed modeling datasets
 - `docs/` : project documentation and PDFs
 - `notebooks/` : Phase 1 validation notebook
 - `src/` : pipelines for validation, transfer dataset construction, and feature engineering

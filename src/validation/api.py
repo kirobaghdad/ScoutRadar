@@ -254,7 +254,7 @@ def fetch_api_football_big_five_fixtures(
     *,
     start_season: int = DEFAULT_API_FOOTBALL_START_SEASON,
     end_season: int = DEFAULT_API_FOOTBALL_END_SEASON,
-    cache_dir: str | Path = "data",
+    cache_dir: str | Path = DEFAULT_API_FOOTBALL_CACHE_DIR,
     key_path: str | Path = "key_api.txt",
     timeout: int = 30,
     use_existing_cache: bool = True,
@@ -1290,7 +1290,7 @@ def build_api_report_snippets(api_results: dict[str, Any]) -> pd.DataFrame:
 def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Fetch and validate API-Football fixture caches.")
     parser.add_argument("--fetch-big-five", action="store_true", help="Fetch/cache Big Five fixtures for the configured modeling seasons.")
-    parser.add_argument("--cache-dir", default="data", help="Directory where per-league-season API cache files are stored.")
+    parser.add_argument("--cache-dir", default=DEFAULT_API_FOOTBALL_CACHE_DIR, help="Directory where per-league-season API cache files are stored.")
     parser.add_argument("--key-path", default="key_api.txt", help="Fallback local API key file.")
     parser.add_argument("--start-season", type=int, default=DEFAULT_API_FOOTBALL_START_SEASON)
     parser.add_argument("--end-season", type=int, default=DEFAULT_API_FOOTBALL_END_SEASON)

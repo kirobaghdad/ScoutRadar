@@ -32,7 +32,7 @@ preprocess:
 	$(PYTHON) src/data/make_dataset.py
 
 api-cache:
-	$(PYTHON) -m src.validation.api --fetch-big-five --cache-dir data --start-season 2018 --end-season 2022
+	$(PYTHON) -m src.validation.api --fetch-big-five --cache-dir data/api_football --start-season 2018 --end-season 2022
 
 transfer-dataset:
 	$(PYTHON) -m src.data.transfer_dataset --output-dir data/processed

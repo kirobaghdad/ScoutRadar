@@ -42,7 +42,7 @@ def test_transfer_success_labels_do_not_leak_beyond_follow_up_window(tmp_path):
 
 def test_transfer_dataset_requires_api_fixture_cache(tmp_path):
     raw_dir = create_synthetic_phase2_raw_dir(tmp_path)
-    for cache_file in tmp_path.glob("api_football*.json"):
+    for cache_file in (tmp_path / "api_football").glob("api_football*.json"):
         cache_file.unlink()
 
     try:
@@ -55,9 +55,10 @@ def test_transfer_dataset_requires_api_fixture_cache(tmp_path):
 
 def test_transfer_dataset_rejects_irrelevant_api_fixture_cache(tmp_path):
     raw_dir = create_synthetic_phase2_raw_dir(tmp_path)
-    for cache_file in tmp_path.glob("api_football*.json"):
+    api_cache_dir = tmp_path / "api_football"
+    for cache_file in api_cache_dir.glob("api_football*.json"):
         cache_file.unlink()
-    (tmp_path / "api_football_fixtures_wrong_period.json").write_text(
+    (api_cache_dir / "api_football_fixtures_wrong_period.json").write_text(
         '{"response":[{"fixture":{"id":1,"date":"2024-09-01T15:00:00+00:00","timestamp":1725202800,"status":{"short":"FT","long":"Match Finished","elapsed":90}},"league":{"id":39,"name":"Premier League","country":"England","season":2024},"teams":{"home":{"id":1,"name":"Premier Town","winner":true},"away":{"id":2,"name":"Opponent","winner":false}},"goals":{"home":2,"away":1}}]}',
         encoding="utf-8",
     )
