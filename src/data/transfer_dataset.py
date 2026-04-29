@@ -9,6 +9,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 from src.validation.api import flatten_fixture_response
+from src.validation.config import API_FOOTBALL_BIG_FIVE_LEAGUES, DEFAULT_API_FOOTBALL_CACHE_DIR
 from src.validation.utils import _normalize_text, load_primary_tables
 
 logger = logging.getLogger(__name__)
@@ -567,8 +568,19 @@ def _attach_club_form_features(cohort: pd.DataFrame, club_history: pd.DataFrame)
 
 def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
     cache_root = Path(cache_dir).expanduser().resolve()
+    cache_paths = sorted(cache_root.glob("api_football*.json"))
+    if not cache_paths and (cache_root / "api_football").is_dir():
+        cache_root = cache_root / "api_football"
+        cache_paths = sorted(cache_root.glob("api_football*.json"))
+    if not cache_paths:
+        raise FileNotFoundError(f"Missing required API Football fixture cache in {cache_root}")
+
     frames: list[pd.DataFrame] = []
-    for cache_path in sorted(cache_root.glob("api_football*.json")):
+    league_id_to_competition = {
+        int(config["api_league_id"]): competition_id
+        for competition_id, config in API_FOOTBALL_BIG_FIVE_LEAGUES.items()
+    }
+    for cache_path in cache_paths:
         try:
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
             if isinstance(payload, dict) and "payload" in payload:
@@ -580,7 +592,15 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             if fixtures.empty:
                 continue
 
-            home = fixtures[["season", "league_name", "home_team_id", "home_team_name", "home_goals", "away_goals", "home_winner"]].rename(
+            fixtures["api_league_id_numeric"] = pd.to_numeric(fixtures["league_id"], errors="coerce").astype("Int64")
+            fixtures["competition_id"] = fixtures["api_league_id_numeric"].map(league_id_to_competition)
+            league_name_competition = fixtures["league_name"].astype(str).where(fixtures["league_name"].astype(str).isin(BIG_FIVE_LEAGUES))
+            fixtures["competition_id"] = fixtures["competition_id"].fillna(league_name_competition)
+            fixtures = fixtures[fixtures["competition_id"].isin(BIG_FIVE_LEAGUES)].copy()
+            if fixtures.empty:
+                continue
+
+            home = fixtures[["competition_id", "season", "league_name", "home_team_id", "home_team_name", "home_goals", "away_goals", "home_winner"]].rename(
                 columns={
                     "home_team_id": "team_id",
                     "home_team_name": "team_name",
@@ -589,7 +609,7 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
                     "home_winner": "is_win",
                 }
             )
-            away = fixtures[["season", "league_name", "away_team_id", "away_team_name", "away_goals", "home_goals", "away_winner"]].rename(
+            away = fixtures[["competition_id", "season", "league_name", "away_team_id", "away_team_name", "away_goals", "home_goals", "away_winner"]].rename(
                 columns={
                     "away_team_id": "team_id",
                     "away_team_name": "team_name",
@@ -602,7 +622,7 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             combined["team_key"] = combined["team_name"].map(_normalize_text)
             combined["matches"] = 1.0
             combined["wins"] = pd.to_numeric(combined["is_win"], errors="coerce").fillna(0).astype(int)
-            aggregated = combined.groupby(["season", "team_key"], as_index=False).agg(
+            aggregated = combined.groupby(["competition_id", "season", "team_key"], as_index=False).agg(
                 api_cached_matches=("matches", "sum"),
                 api_cached_wins=("wins", "sum"),
                 api_cached_goals_for=("goals_for", "sum"),
@@ -619,13 +639,13 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             logger.warning("Skipping API cache %s because it could not be parsed: %s", cache_path, exc)
 
     if not frames:
-        return pd.DataFrame()
+        raise ValueError(f"Required API Football fixture cache in {cache_root} did not contain usable fixture rows")
 
     combined = pd.concat(frames, ignore_index=True)
-    return combined.drop_duplicates(["season", "team_key"], keep="last").reset_index(drop=True)
+    return combined.drop_duplicates(["competition_id", "season", "team_key"], keep="last").reset_index(drop=True)
 
 
-def _attach_optional_api_features(cohort: pd.DataFrame, cache_dir: str | Path) -> pd.DataFrame:
+def _attach_api_context_features(cohort: pd.DataFrame, cache_dir: str | Path) -> pd.DataFrame:
     api_context = _load_cached_api_team_context(cache_dir)
     result = cohort.copy()
     for prefix, team_col in [("source", "source_club_name"), ("destination", "destination_club_name")]:
@@ -635,20 +655,25 @@ def _attach_optional_api_features(cohort: pd.DataFrame, cache_dir: str | Path) -
         result[f"{prefix}_api_cache_file"] = pd.NA
         result[f"{prefix}_team_key"] = result[team_col].map(_normalize_text)
 
-    if api_context.empty:
-        return result.drop(columns=["source_team_key", "destination_team_key"])
-
     for prefix, team_key_col in [("source", "source_team_key"), ("destination", "destination_team_key")]:
-        merged = result[[team_key_col, "season_start_year"]].merge(
+        competition_col = f"{prefix}_competition_id"
+        merged = result[[team_key_col, "season_start_year", competition_col]].merge(
             api_context,
-            left_on=[team_key_col, "season_start_year"],
-            right_on=["team_key", "season"],
+            left_on=[team_key_col, "season_start_year", competition_col],
+            right_on=["team_key", "season", "competition_id"],
             how="left",
         )
         result[f"{prefix}_api_cached_matches"] = merged["api_cached_matches"]
         result[f"{prefix}_api_cached_win_rate"] = merged["api_cached_win_rate"]
         result[f"{prefix}_api_cached_goal_diff_per_match"] = merged["api_cached_goal_diff_per_match"]
         result[f"{prefix}_api_cache_file"] = merged["api_cache_file"]
+
+    if result["source_api_cached_matches"].notna().sum() == 0 and result["destination_api_cached_matches"].notna().sum() == 0:
+        seasons = sorted(pd.to_numeric(result["season_start_year"], errors="coerce").dropna().astype(int).unique().tolist())
+        raise ValueError(
+            "Cached API Football fixtures did not match the transfer cohort by Big Five competition, season, and team name. "
+            f"Fetch Big Five API caches for seasons {seasons} before building the transfer dataset."
+        )
 
     return result.drop(columns=["source_team_key", "destination_team_key"])
 
@@ -762,8 +787,8 @@ def create_transfer_success_labels(
 def _finalize_modeling_dataset(labeled: pd.DataFrame) -> pd.DataFrame:
     modeling_dataset = labeled[labeled["target_is_eligible"]].copy()
     modeling_dataset["transfer_success"] = modeling_dataset["transfer_success"].astype(int)
-    modeling_dataset["source_api_cache_available"] = modeling_dataset["source_api_cached_matches"].notna().astype(int)
-    modeling_dataset["destination_api_cache_available"] = modeling_dataset["destination_api_cached_matches"].notna().astype(int)
+    modeling_dataset["source_api_context_matched"] = modeling_dataset["source_api_cached_matches"].notna().astype(int)
+    modeling_dataset["destination_api_context_matched"] = modeling_dataset["destination_api_cached_matches"].notna().astype(int)
 
     ordered_columns = [
         "transfer_key",
@@ -828,11 +853,11 @@ def _finalize_modeling_dataset(labeled: pd.DataFrame) -> pd.DataFrame:
         "source_api_cached_matches",
         "source_api_cached_win_rate",
         "source_api_cached_goal_diff_per_match",
-        "source_api_cache_available",
+        "source_api_context_matched",
         "destination_api_cached_matches",
         "destination_api_cached_win_rate",
         "destination_api_cached_goal_diff_per_match",
-        "destination_api_cache_available",
+        "destination_api_context_matched",
         "is_same_league_move",
         "is_same_country_move",
         "season_start_year",
@@ -855,7 +880,7 @@ def build_transfer_modeling_dataset(
     raw_dir: str | Path = "data/player_scores_data",
     *,
     output_dir: str | Path | None = None,
-    cache_dir: str | Path = "data",
+    cache_dir: str | Path = DEFAULT_API_FOOTBALL_CACHE_DIR,
     start_date: str = DEFAULT_TRANSFER_START_DATE,
     end_date: str = DEFAULT_TRANSFER_END_DATE,
     follow_up_months: int = DEFAULT_FOLLOW_UP_MONTHS,
@@ -878,7 +903,7 @@ def build_transfer_modeling_dataset(
     cohort = _attach_player_performance_features(cohort, tables["appearances"])
     club_history = _prepare_club_form_history(tables["club_games"], tables["games"])
     cohort = _attach_club_form_features(cohort, club_history)
-    cohort = _attach_optional_api_features(cohort, cache_dir)
+    cohort = _attach_api_context_features(cohort, cache_dir)
     labeled_cohort = create_transfer_success_labels(
         cohort,
         tables["appearances"],
@@ -890,22 +915,21 @@ def build_transfer_modeling_dataset(
     modeling_dataset = _finalize_modeling_dataset(labeled_cohort)
     label_eligibility_failures = labeled_cohort[~labeled_cohort["target_is_eligible"]].copy().reset_index(drop=True)
 
+    summary_values = {
+        "raw_transfers": int(len(tables["transfers"])),
+        "candidate_transfers": int(len(cohort)),
+        "modeling_rows": int(len(modeling_dataset)),
+        "excluded_rows": int(len(excluded_transfers)),
+        "label_ineligible_rows": int(len(label_eligibility_failures)),
+        "positive_class_rate": round(float(modeling_dataset["transfer_success"].mean()), 4) if not modeling_dataset.empty else pd.NA,
+        "start_date": start_date,
+        "end_date": end_date,
+        "follow_up_months": int(follow_up_months),
+        "minutes_threshold": int(minutes_threshold),
+        "big_five_leagues": ",".join(big_five_leagues),
+    }
     audit_summary = pd.DataFrame(
-        [
-            {
-                "raw_transfers": int(len(tables["transfers"])),
-                "candidate_transfers": int(len(cohort)),
-                "modeling_rows": int(len(modeling_dataset)),
-                "excluded_rows": int(len(excluded_transfers)),
-                "label_ineligible_rows": int(len(label_eligibility_failures)),
-                "positive_class_rate": round(float(modeling_dataset["transfer_success"].mean()), 4) if not modeling_dataset.empty else pd.NA,
-                "start_date": start_date,
-                "end_date": end_date,
-                "follow_up_months": int(follow_up_months),
-                "minutes_threshold": int(minutes_threshold),
-                "big_five_leagues": ",".join(big_five_leagues),
-            }
-        ]
+        [{"metric": metric, "value": value} for metric, value in summary_values.items()]
     )
 
     outputs = {
@@ -946,7 +970,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Build the ScoutRadar transfer-level modeling dataset.")
     parser.add_argument("--raw-dir", default="data/player_scores_data")
     parser.add_argument("--output-dir", default="data/processed")
-    parser.add_argument("--cache-dir", default="data")
+    parser.add_argument("--cache-dir", default=DEFAULT_API_FOOTBALL_CACHE_DIR)
     parser.add_argument("--start-date", default=DEFAULT_TRANSFER_START_DATE)
     parser.add_argument("--end-date", default=DEFAULT_TRANSFER_END_DATE)
     parser.add_argument("--follow-up-months", type=int, default=DEFAULT_FOLLOW_UP_MONTHS)

@@ -1,4 +1,4 @@
-.PHONY: install test lint format clean check preprocess transfer-dataset
+.PHONY: install test lint format clean check preprocess api-cache transfer-dataset
 
 # Variables
 POETRY = poetry
@@ -30,6 +30,9 @@ clean:
 
 preprocess:
 	$(PYTHON) src/data/make_dataset.py
+
+api-cache:
+	$(PYTHON) -m src.validation.api --fetch-big-five --cache-dir data/api_football --start-season 2018 --end-season 2022
 
 transfer-dataset:
 	$(PYTHON) -m src.data.transfer_dataset --output-dir data/processed
