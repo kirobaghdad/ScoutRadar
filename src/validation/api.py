@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
@@ -136,6 +137,10 @@ def _save_api_fixture_cache(fetch_result: dict[str, Any], cache_path: str | Path
     cache_file.write_text(json.dumps(fetch_result, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
 
 
+def _api_fixture_cache_path(cache_dir: str | Path, competition_id: str, season: int) -> Path:
+    return Path(cache_dir).expanduser().resolve() / f"api_football_{competition_id}_{season}.json"
+
+
 def _load_api_fixture_cache(
     cache_path: str | Path,
     request_params: dict[str, Any] | None = None,
@@ -243,6 +248,49 @@ def fetch_api_football_fixtures(
     if cache_path is not None and save_cache and int(fetch_result["status_code"]) == 200:
         _save_api_fixture_cache(fetch_result, cache_path)
     return fetch_result
+
+
+def fetch_api_football_big_five_fixtures(
+    *,
+    start_season: int = DEFAULT_API_FOOTBALL_START_SEASON,
+    end_season: int = DEFAULT_API_FOOTBALL_END_SEASON,
+    cache_dir: str | Path = "data",
+    key_path: str | Path = "key_api.txt",
+    timeout: int = 30,
+    use_existing_cache: bool = True,
+    delay_seconds: float = 0.0,
+) -> dict[str, dict[str, Any]]:
+    """Fetch/cache one API-Football fixtures response for each Big Five league-season."""
+
+    if end_season < start_season:
+        raise ValueError("end_season must be greater than or equal to start_season")
+
+    results: dict[str, dict[str, Any]] = {}
+    for competition_id, league_config in API_FOOTBALL_BIG_FIVE_LEAGUES.items():
+        for season in range(int(start_season), int(end_season) + 1):
+            cache_path = _api_fixture_cache_path(cache_dir, competition_id, season)
+            request_params = {
+                **DEFAULT_API_FOOTBALL_FIXTURE_PARAMS,
+                "league": league_config["api_league_id"],
+                "season": season,
+            }
+            result_key = f"{competition_id}_{season}"
+            if use_existing_cache and cache_path.exists():
+                results[result_key] = _load_api_fixture_cache(cache_path, request_params=request_params)
+                continue
+
+            results[result_key] = fetch_api_football_fixtures(
+                params=request_params,
+                key_path=key_path,
+                timeout=timeout,
+                cache_path=cache_path,
+                use_cache_on_failure=True,
+                save_cache=True,
+            )
+            if delay_seconds > 0:
+                time.sleep(delay_seconds)
+
+    return results
 
 
 def flatten_fixture_response(payload: dict[str, Any]) -> pd.DataFrame:
@@ -1237,5 +1285,52 @@ def build_api_report_snippets(api_results: dict[str, Any]) -> pd.DataFrame:
         },
     ]
     return pd.DataFrame(rows)
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Fetch and validate API-Football fixture caches.")
+    parser.add_argument("--fetch-big-five", action="store_true", help="Fetch/cache Big Five fixtures for the configured modeling seasons.")
+    parser.add_argument("--cache-dir", default="data", help="Directory where per-league-season API cache files are stored.")
+    parser.add_argument("--key-path", default="key_api.txt", help="Fallback local API key file.")
+    parser.add_argument("--start-season", type=int, default=DEFAULT_API_FOOTBALL_START_SEASON)
+    parser.add_argument("--end-season", type=int, default=DEFAULT_API_FOOTBALL_END_SEASON)
+    parser.add_argument("--timeout", type=int, default=30)
+    parser.add_argument("--refresh", action="store_true", help="Refetch even when a matching cache file already exists.")
+    parser.add_argument("--delay-seconds", type=float, default=0.0, help="Optional pause between API calls to respect rate limits.")
+    return parser
+
+
+def main() -> None:
+    parser = _build_arg_parser()
+    args = parser.parse_args()
+
+    if args.fetch_big_five:
+        results = fetch_api_football_big_five_fixtures(
+            start_season=args.start_season,
+            end_season=args.end_season,
+            cache_dir=args.cache_dir,
+            key_path=args.key_path,
+            timeout=args.timeout,
+            use_existing_cache=not args.refresh,
+            delay_seconds=args.delay_seconds,
+        )
+        summary = {
+            key: {
+                "status_code": result["status_code"],
+                "results": result["payload"].get("results"),
+                "cache_path": result.get("cache_path"),
+                "source": result.get("source"),
+            }
+            for key, result in results.items()
+        }
+        print(json.dumps(summary, indent=2, default=str))
+        return
+
+    parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
+
 
 __all__ = [k for k in globals().keys() if not k.startswith('__') and k not in ['__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__']]

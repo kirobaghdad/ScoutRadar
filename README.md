@@ -18,6 +18,9 @@ For local runs, either export `API_FOOTBALL_KEY` in your shell or keep a local `
 
 ## Phase 2 Commands
 
+- `make api-cache`
+  Fetches and caches API-Football fixture data for the Big Five leagues across the modeling seasons `2018` through `2022`.
+  This creates per-league-season cache files such as `data/api_football_GB1_2018.json`.
 - `make transfer-dataset`
   Builds the transfer-level modeling dataset and saves:
   `data/processed/transfer_modeling_dataset.csv`
@@ -30,6 +33,7 @@ For local runs, either export `API_FOOTBALL_KEY` in your shell or keep a local `
 ## Modeling Summary
 
 - Cohort: incoming transfers into Big Five clubs between `2018-07-01` and `2022-06-30`
+- API context: Big Five fixture caches for seasons `2018` through `2022`
 - Target: `transfer_success`
 - Success rule: at least `1,800` minutes for the destination club in the first `24` months after the transfer, plus end-of-window market value greater than or equal to pre-transfer market value
 - Splitting: chronological `70/15/15` train/validation/test

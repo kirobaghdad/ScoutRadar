@@ -194,9 +194,18 @@ RELATIONSHIP_STRONG_THRESHOLD = 0.6
 RELATIONSHIP_FOREIGNERS_PCT_TOLERANCE = 1.0
 
 API_FOOTBALL_FIXTURES_URL = "https://v3.football.api-sports.io/fixtures"
+API_FOOTBALL_BIG_FIVE_LEAGUES = {
+    "GB1": {"api_league_id": 39, "name": "Premier League", "country": "England"},
+    "ES1": {"api_league_id": 140, "name": "La Liga", "country": "Spain"},
+    "IT1": {"api_league_id": 135, "name": "Serie A", "country": "Italy"},
+    "L1": {"api_league_id": 78, "name": "Bundesliga", "country": "Germany"},
+    "FR1": {"api_league_id": 61, "name": "Ligue 1", "country": "France"},
+}
+DEFAULT_API_FOOTBALL_START_SEASON = 2018
+DEFAULT_API_FOOTBALL_END_SEASON = 2022
 DEFAULT_API_FOOTBALL_FIXTURE_PARAMS = {
     "league": 39,
-    "season": 2024,
+    "season": DEFAULT_API_FOOTBALL_START_SEASON,
     "status": "FT-AET-PEN",
     "timezone": "Africa/Cairo",
 }

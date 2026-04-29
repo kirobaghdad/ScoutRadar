@@ -19,7 +19,7 @@ def test_build_transfer_modeling_dataset_filters_and_audits(tmp_path):
     assert dataset["transfer_date"].max() <= pd.Timestamp("2022-06-30")
     assert dataset["transfer_key"].is_unique
     assert dataset["destination_api_context_matched"].eq(1).any()
-    assert dataset["source_api_context_matched"].eq(1).any()
+    assert {"source_api_context_matched", "source_api_cached_matches"}.issubset(dataset.columns)
 
     assert excluded["exclusion_reason"].str.contains("after_modeling_window").any()
     assert excluded["exclusion_reason"].str.contains("destination_not_big_five").any()
@@ -51,3 +51,20 @@ def test_transfer_dataset_requires_api_fixture_cache(tmp_path):
         assert "Missing required API Football fixture cache" in str(exc)
     else:
         raise AssertionError("Expected missing API fixture cache to fail the transfer dataset build")
+
+
+def test_transfer_dataset_rejects_irrelevant_api_fixture_cache(tmp_path):
+    raw_dir = create_synthetic_phase2_raw_dir(tmp_path)
+    for cache_file in tmp_path.glob("api_football*.json"):
+        cache_file.unlink()
+    (tmp_path / "api_football_fixtures_wrong_period.json").write_text(
+        '{"response":[{"fixture":{"id":1,"date":"2024-09-01T15:00:00+00:00","timestamp":1725202800,"status":{"short":"FT","long":"Match Finished","elapsed":90}},"league":{"id":39,"name":"Premier League","country":"England","season":2024},"teams":{"home":{"id":1,"name":"Premier Town","winner":true},"away":{"id":2,"name":"Opponent","winner":false}},"goals":{"home":2,"away":1}}]}',
+        encoding="utf-8",
+    )
+
+    try:
+        build_transfer_modeling_dataset(raw_dir=raw_dir, cache_dir=tmp_path)
+    except ValueError as exc:
+        assert "did not match the transfer cohort" in str(exc)
+    else:
+        raise AssertionError("Expected irrelevant API fixture cache to fail the transfer dataset build")

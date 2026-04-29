@@ -9,6 +9,7 @@ from typing import Any, Iterable
 import pandas as pd
 
 from src.validation.api import flatten_fixture_response
+from src.validation.config import API_FOOTBALL_BIG_FIVE_LEAGUES
 from src.validation.utils import _normalize_text, load_primary_tables
 
 logger = logging.getLogger(__name__)
@@ -572,6 +573,10 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
         raise FileNotFoundError(f"Missing required API Football fixture cache in {cache_root}")
 
     frames: list[pd.DataFrame] = []
+    league_id_to_competition = {
+        int(config["api_league_id"]): competition_id
+        for competition_id, config in API_FOOTBALL_BIG_FIVE_LEAGUES.items()
+    }
     for cache_path in cache_paths:
         try:
             payload = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -584,7 +589,15 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             if fixtures.empty:
                 continue
 
-            home = fixtures[["season", "league_name", "home_team_id", "home_team_name", "home_goals", "away_goals", "home_winner"]].rename(
+            fixtures["api_league_id_numeric"] = pd.to_numeric(fixtures["league_id"], errors="coerce").astype("Int64")
+            fixtures["competition_id"] = fixtures["api_league_id_numeric"].map(league_id_to_competition)
+            league_name_competition = fixtures["league_name"].astype(str).where(fixtures["league_name"].astype(str).isin(BIG_FIVE_LEAGUES))
+            fixtures["competition_id"] = fixtures["competition_id"].fillna(league_name_competition)
+            fixtures = fixtures[fixtures["competition_id"].isin(BIG_FIVE_LEAGUES)].copy()
+            if fixtures.empty:
+                continue
+
+            home = fixtures[["competition_id", "season", "league_name", "home_team_id", "home_team_name", "home_goals", "away_goals", "home_winner"]].rename(
                 columns={
                     "home_team_id": "team_id",
                     "home_team_name": "team_name",
@@ -593,7 +606,7 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
                     "home_winner": "is_win",
                 }
             )
-            away = fixtures[["season", "league_name", "away_team_id", "away_team_name", "away_goals", "home_goals", "away_winner"]].rename(
+            away = fixtures[["competition_id", "season", "league_name", "away_team_id", "away_team_name", "away_goals", "home_goals", "away_winner"]].rename(
                 columns={
                     "away_team_id": "team_id",
                     "away_team_name": "team_name",
@@ -606,7 +619,7 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
             combined["team_key"] = combined["team_name"].map(_normalize_text)
             combined["matches"] = 1.0
             combined["wins"] = pd.to_numeric(combined["is_win"], errors="coerce").fillna(0).astype(int)
-            aggregated = combined.groupby(["season", "team_key"], as_index=False).agg(
+            aggregated = combined.groupby(["competition_id", "season", "team_key"], as_index=False).agg(
                 api_cached_matches=("matches", "sum"),
                 api_cached_wins=("wins", "sum"),
                 api_cached_goals_for=("goals_for", "sum"),
@@ -626,7 +639,7 @@ def _load_cached_api_team_context(cache_dir: str | Path) -> pd.DataFrame:
         raise ValueError(f"Required API Football fixture cache in {cache_root} did not contain usable fixture rows")
 
     combined = pd.concat(frames, ignore_index=True)
-    return combined.drop_duplicates(["season", "team_key"], keep="last").reset_index(drop=True)
+    return combined.drop_duplicates(["competition_id", "season", "team_key"], keep="last").reset_index(drop=True)
 
 
 def _attach_api_context_features(cohort: pd.DataFrame, cache_dir: str | Path) -> pd.DataFrame:
@@ -640,16 +653,24 @@ def _attach_api_context_features(cohort: pd.DataFrame, cache_dir: str | Path) ->
         result[f"{prefix}_team_key"] = result[team_col].map(_normalize_text)
 
     for prefix, team_key_col in [("source", "source_team_key"), ("destination", "destination_team_key")]:
-        merged = result[[team_key_col, "season_start_year"]].merge(
+        competition_col = f"{prefix}_competition_id"
+        merged = result[[team_key_col, "season_start_year", competition_col]].merge(
             api_context,
-            left_on=[team_key_col, "season_start_year"],
-            right_on=["team_key", "season"],
+            left_on=[team_key_col, "season_start_year", competition_col],
+            right_on=["team_key", "season", "competition_id"],
             how="left",
         )
         result[f"{prefix}_api_cached_matches"] = merged["api_cached_matches"]
         result[f"{prefix}_api_cached_win_rate"] = merged["api_cached_win_rate"]
         result[f"{prefix}_api_cached_goal_diff_per_match"] = merged["api_cached_goal_diff_per_match"]
         result[f"{prefix}_api_cache_file"] = merged["api_cache_file"]
+
+    if result["source_api_cached_matches"].notna().sum() == 0 and result["destination_api_cached_matches"].notna().sum() == 0:
+        seasons = sorted(pd.to_numeric(result["season_start_year"], errors="coerce").dropna().astype(int).unique().tolist())
+        raise ValueError(
+            "Cached API Football fixtures did not match the transfer cohort by Big Five competition, season, and team name. "
+            f"Fetch Big Five API caches for seasons {seasons} before building the transfer dataset."
+        )
 
     return result.drop(columns=["source_team_key", "destination_team_key"])
 
