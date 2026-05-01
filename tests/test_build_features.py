@@ -17,7 +17,13 @@ def test_build_features_fits_only_on_training_categories_and_excludes_target_col
             "position": ["Attack", "Defender", "Attack"],
             "destination_competition_name": ["Premier League", "LaLiga", "Premier League"],
             "age_at_transfer": [21, 25, None],
+            "transfer_fee": [1_000_000, None, 0],
+            "transfer_fee_for_model": [1_000_000, 0, 0],
+            "transfer_fee_log1p": [13.8155, 0.0, 0.0],
             "pre_transfer_market_value": [1_000_000, 1_500_000, 1_200_000],
+            "pre_transfer_market_value_log1p": [13.8155, 14.2210, 13.9978],
+            "player_current_market_value": [2_000_000, 3_000_000, 2_500_000],
+            "highest_market_value_in_eur": [5_000_000, 6_000_000, 7_000_000],
             "player_minutes_365d_pre": [1200, 900, 1500],
             "target_destination_minutes_24m": [200, 2300, 1400],
             "transfer_success": [0, 1, 1],
@@ -30,7 +36,13 @@ def test_build_features_fits_only_on_training_categories_and_excludes_target_col
             "position": ["Goalkeeper"],
             "destination_competition_name": ["Bundesliga"],
             "age_at_transfer": [27],
+            "transfer_fee": [None],
+            "transfer_fee_for_model": [0],
+            "transfer_fee_log1p": [0.0],
             "pre_transfer_market_value": [900_000],
+            "pre_transfer_market_value_log1p": [13.7102],
+            "player_current_market_value": [1_100_000],
+            "highest_market_value_in_eur": [3_500_000],
             "player_minutes_365d_pre": [800],
             "target_destination_minutes_24m": [300],
             "transfer_success": [0],
@@ -40,6 +52,13 @@ def test_build_features_fits_only_on_training_categories_and_excludes_target_col
     payload = build_features(train_df, val_df, val_df)
 
     assert "target_destination_minutes_24m" not in payload["feature_columns"]
+    assert "transfer_fee" not in payload["feature_columns"]
+    assert "transfer_fee_for_model" not in payload["feature_columns"]
+    assert "pre_transfer_market_value" not in payload["feature_columns"]
+    assert "transfer_fee_log1p" in payload["feature_columns"]
+    assert "pre_transfer_market_value_log1p" in payload["feature_columns"]
+    assert "player_current_market_value" not in payload["feature_columns"]
+    assert "highest_market_value_in_eur" not in payload["feature_columns"]
     assert payload["X_train"].shape[1] == payload["X_val"].shape[1] == payload["X_test"].shape[1]
     assert not any("Goalkeeper" in name for name in payload["feature_names"])
     assert payload["X_train"].isna().sum().sum() == 0

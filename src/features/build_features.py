@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TARGET_COLUMN = "transfer_success"
 DEFAULT_SORT_COLUMN = "transfer_date"
+PREFERRED_TRANSFORM_FEATURES = {
+    "transfer_fee": "transfer_fee_log1p",
+    "transfer_fee_for_model": "transfer_fee_log1p",
+    "pre_transfer_market_value": "pre_transfer_market_value_log1p",
+    "market_value_in_eur": "market_value_in_eur_log1p",
+    "target_end_market_value": "target_end_market_value_log1p",
+    "highest_market_value_in_eur": "highest_market_value_in_eur_log1p",
+    "player_current_market_value": "player_current_market_value_log1p",
+}
 
 NON_FEATURE_COLUMNS = {
     "transfer_key",
@@ -37,6 +46,27 @@ NON_FEATURE_COLUMNS = {
     "target_is_eligible",
     "target_minutes_window_start",
     "target_minutes_window_end",
+    "exclusion_reason",
+    "date_of_birth",
+    "source_country_name",
+    "destination_country_name",
+    "pre_transfer_market_value_club_id",
+    "pre_transfer_market_value_league_id",
+    "valuation_cutoff_180d",
+    "valuation_cutoff_365d",
+    "player_window_start_180d",
+    "player_window_end_180d",
+    "player_window_start_365d",
+    "player_window_end_365d",
+    "source_api_cache_file",
+    "destination_api_cache_file",
+    "player_current_market_value",
+    "highest_market_value_in_eur",
+    "transfer_season",
+    "source_competition_name",
+    "destination_competition_name",
+    "source_competition_name",
+    "destination_competition_name",
 }
 
 
@@ -112,6 +142,9 @@ def infer_feature_columns(
     feature_columns: list[str] = []
     for column in df.columns:
         if column in excluded:
+            continue
+        preferred_column = PREFERRED_TRANSFORM_FEATURES.get(column)
+        if preferred_column and preferred_column in df.columns:
             continue
         if column.startswith("target_"):
             continue

@@ -43,3 +43,4 @@ mlruns/
 # Note: poetry.lock should NOT be ignored to ensure reproducible builds
 .ruff_cache/
 .cache/
+labs/
